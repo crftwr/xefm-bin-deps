@@ -9,9 +9,10 @@
     has no system libarchive for it to find. This script produces the one that
     XeFM's Windows builds bundle.
 
-    The output is ONE DLL. zlib, bzip2, liblzma and libzstd are built static and
-    linked in, and so is the MSVC runtime (/MT), so `archive.dll` can be dropped
-    next to an application with no support DLLs and no CRT version coupling.
+    The output is ONE DLL: zlib, bzip2, liblzma and libzstd are built static and
+    linked in, so there are no compression libraries to ship alongside it. The
+    MSVC runtime is deliberately NOT static -- see the note above $CommonArgs,
+    where the filename-encoding reason for that is spelled out.
 
     What is deliberately in and out:
 
@@ -221,13 +222,33 @@ foreach ($s in $Sources) {
 # --- building -----------------------------------------------------------------
 
 # Every dependency and libarchive itself gets the same three: a Release build,
-# the static MSVC runtime, and Ninja. CMP0091 is what makes
+# the shared MSVC runtime, and Ninja. CMP0091 is what makes
 # CMAKE_MSVC_RUNTIME_LIBRARY authoritative rather than the old flag-rewriting.
+#
+# The runtime is shared (/MD) rather than static (/MT), and that is a deliberate
+# reversal worth recording, because /MT looks strictly better: it would make
+# archive.dll depend on nothing outside Windows itself.
+#
+# libarchive decides how to convert a filename between wide and narrow forms by
+# calling setlocale(LC_CTYPE, NULL) in its own C runtime and reading the code
+# page out of the answer (get_current_codepage() in archive_string.c). Under /MT
+# that runtime is private to this DLL, permanently at the process ANSI code page,
+# and unreachable from the host: nothing the application does can change it. On a
+# machine whose ACP is, say, 1252, archive_entry_pathname() then returns NULL for
+# any name the ACP cannot spell -- and the cpio writer reports "Pathname
+# required" while the iso9660 writer mistakes the NULL for the virtual root and
+# drops the file without a word.
+#
+# Under /MD the runtime is the process's, so a single setlocale(LC_CTYPE, .UTF8)
+# on the application's side fixes every one of those conversions. XeFM does
+# exactly that before it loads this library. For a file manager expected to hold
+# CJK filenames, that is worth more than dropping a dependency on vcruntime140,
+# which the bundle already ships because CPython needs it.
 $CommonArgs = @(
     '-G', 'Ninja'
     '-DCMAKE_BUILD_TYPE=Release'
     '-DCMAKE_POLICY_DEFAULT_CMP0091=NEW'
-    '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded'
+    '-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL'
     "-DCMAKE_INSTALL_PREFIX=$Prefix"
     "-DCMAKE_PREFIX_PATH=$Prefix"
 )
@@ -395,17 +416,23 @@ if ($missing) {
 }
 Write-Info "all required codecs present: $($RequiredCodecs -join ', ')"
 
-# The point of static deps is that this list stays boring. Anything here beyond
-# the OS DLLs means a support library escaped and the drop-in property is gone.
+# The compression libraries are static, so the only things here should be
+# Windows' own DLLs plus the C runtime. Anything else means a dependency escaped
+# and would have to be shipped alongside.
 $dumpbin = Get-Command dumpbin.exe -ErrorAction SilentlyContinue
 if ($dumpbin) {
     $imports = & dumpbin.exe /DEPENDENTS $Dll |
         Select-String -Pattern '^\s{4}(\S+\.dll)$' |
         ForEach-Object { $_.Matches[0].Groups[1].Value }
     Write-Info "imports: $($imports -join ' ')"
-    $unexpected = $imports | Where-Object { $_ -match '^(zlib|libzstd|zstd|liblzma|lzma|bz2|libbz2|libcrypto|libxml2|msvcp\d+)' }
+    $unexpected = $imports | Where-Object { $_ -match '^(zlib|libzstd|zstd|liblzma|lzma|bz2|libbz2|libcrypto|libxml2)' }
     if ($unexpected) {
         throw "archive.dll dynamically imports what should have been static: $($unexpected -join ', ')"
+    }
+    # /MD is chosen on purpose (see CommonArgs); its absence would mean the
+    # runtime went static again and took the filename conversions with it.
+    if (-not ($imports -match '^(vcruntime|api-ms-win-crt|ucrtbase)')) {
+        Write-Warning "No C runtime import: this looks like a static-CRT build, which breaks non-ASCII filenames in the cpio and iso writers."
     }
     if ($imports -match '^bcrypt\.dll$') {
         Write-Info "bcrypt.dll present -- CNG took effect, so OpenSSL is genuinely not needed"
