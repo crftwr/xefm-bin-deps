@@ -16,7 +16,7 @@
     "",
     "Where upstream publishes a signature, `signature_url` and `signing_key`",
     "record how the hash below was established in the first place. See",
-    "ADDING_A_PLATFORM.md for the procedure to repeat when bumping a version."
+    "CLAUDE.md for the procedure to repeat when bumping a version."
   ],
   "sources": [
     {

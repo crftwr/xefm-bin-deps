@@ -122,8 +122,8 @@ Every upstream source is pinned by version **and** SHA-256 in
 platform's build will read too; the build refuses to continue on a mismatch.
 Those hashes were taken from downloads whose OpenPGP signatures were verified
 against each project's published signing key, recorded in the same file — see
-[ADDING_A_PLATFORM.md](ADDING_A_PLATFORM.md#bumping-a-pinned-version) for the
-procedure to repeat when bumping one. bzip2 has no upstream CMake build, so
+[CLAUDE.md](CLAUDE.md#bumping-a-pinned-version) for the procedure to repeat when
+bumping one. bzip2 has no upstream CMake build, so
 [`windows/cmake/bzip2/CMakeLists.txt`](windows/cmake/bzip2/CMakeLists.txt) in
 this repository supplies one; the upstream tarball itself is used unmodified.
 
@@ -149,12 +149,12 @@ Only Windows is built here today, because it is the only platform XeFM supports
 that has no system libarchive. macOS and Linux builds are plausible later — the
 strongest case is macOS, whose system libarchive has no libzstd.
 
-[ADDING_A_PLATFORM.md](ADDING_A_PLATFORM.md) records what a second platform
-would and would not share: `sources.json` must stay the one place versions are
-pinned, the release layout and asset naming are fixed, and everything about
-toolchains and linkage is per-platform on purpose. It also documents the
-filename-encoding trap that decided Windows' C runtime linkage, which any
-platform weighing a static runtime should read first.
+[CLAUDE.md](CLAUDE.md) records what a second platform would and would not share:
+`sources.json` must stay the one place versions are pinned, the release layout
+and asset naming are fixed, and everything about toolchains and linkage is
+per-platform on purpose. It also documents the filename-encoding trap that
+decided Windows' C runtime linkage, which any platform weighing a static runtime
+should read first.
 
 ## License
 

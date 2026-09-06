@@ -43,8 +43,8 @@
       tar cpio cat unzip tests  OFF -- this build is the library, nothing else.
 
     Upstream versions and their hashes are NOT in this file: they live in
-    ..\sources.json, which every platform's build reads. See ADDING_A_PLATFORM.md
-    for what is shared between platforms and what each one has to answer itself.
+    ..\sources.json, which every platform's build reads. See ..\CLAUDE.md for the
+    invariants behind that, and for what a second platform would and would not share.
 
 .PARAMETER Arch
     Target architecture. x64 is what XeFM's Windows bundle ships.
