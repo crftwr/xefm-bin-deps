@@ -42,6 +42,10 @@
       iconv                     OFF -- libarchive uses the Win32 codepage APIs.
       tar cpio cat unzip tests  OFF -- this build is the library, nothing else.
 
+    Upstream versions and their hashes are NOT in this file: they live in
+    ..\sources.json, which every platform's build reads. See ADDING_A_PLATFORM.md
+    for what is shared between platforms and what each one has to answer itself.
+
 .PARAMETER Arch
     Target architecture. x64 is what XeFM's Windows bundle ships.
 
@@ -62,44 +66,6 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
-# --- pinned upstream sources --------------------------------------------------
-#
-# Pinned by version AND by SHA-256: a release asset that changes under a tag is
-# the thing this is here to catch. The hashes were taken from a first download
-# whose OpenPGP signature was verified against each project's published signing
-# key -- xz by 3690C240CE51B4670D30AD1C38EE757D69184620 (Lasse Collin),
-# libarchive by 659C84C0E23EA1FA97E0B58CC040B508D63D2B36 (Martin Matuska), zstd
-# by 4EF4AC63455FC9F4545D9B7DEF8FE99528B52FFD (Zstandard Release Signing Key).
-# zlib and bzip2 publish no signature; bzip2 1.0.8's hash below is the value
-# that has been quoted by every distribution since 2019.
-#
-# xz is pinned at >= 5.6.2 for a reason that needs saying out loud: 5.6.0 and
-# 5.6.1 shipped the CVE-2024-3094 backdoor. Never move this pin backwards.
-
-$Sources = @(
-    @{ Name = 'zlib';       Version = '1.3.2';
-       Url  = 'https://github.com/madler/zlib/releases/download/v1.3.2/zlib-1.3.2.tar.gz'
-       Sha256 = 'bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16' }
-    @{ Name = 'bzip2';      Version = '1.0.8';
-       Url  = 'https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz'
-       Sha256 = 'ab5a03176ee106d3f0fa90e381da478ddae405918153cca248e682cd0c4a2269' }
-    @{ Name = 'xz';         Version = '5.8.3';
-       Url  = 'https://github.com/tukaani-project/xz/releases/download/v5.8.3/xz-5.8.3.tar.xz'
-       Sha256 = 'fff1ffcf2b0da84d308a14de513a1aa23d4e9aa3464d17e64b9714bfdd0bbfb6' }
-    @{ Name = 'zstd';       Version = '1.5.7';
-       Url  = 'https://github.com/facebook/zstd/releases/download/v1.5.7/zstd-1.5.7.tar.gz'
-       Sha256 = 'eb33e51f49a15e023950cd7825ca74a4a2b43db8354825ac24fc1b7ee09e6fa3' }
-    @{ Name = 'libarchive'; Version = '3.8.9';
-       Url  = 'https://github.com/libarchive/libarchive/releases/download/v3.8.9/libarchive-3.8.9.tar.xz'
-       Sha256 = '888c934f9d95648ecb9163dc8e23ab80a476ecb81a8f1154704a227b5b676dde' }
-)
-
-function Get-Source([string]$name) {
-    $s = $Sources | Where-Object { $_.Name -eq $name }
-    if (-not $s) { throw "No pinned source named '$name'" }
-    return $s
-}
-
 # --- layout -------------------------------------------------------------------
 
 $RepoRoot  = Split-Path -Parent $PSScriptRoot
@@ -109,6 +75,38 @@ $DlDir     = Join-Path $CacheDir 'src'
 $BuildRoot = Join-Path $WinRoot  "build\$Arch"
 $Prefix    = Join-Path $BuildRoot 'deps'      # static deps install here
 $StageDir  = Join-Path $BuildRoot 'stage'     # what gets zipped
+
+# --- pinned upstream sources --------------------------------------------------
+#
+# Read from sources.json at the repo root rather than written out here, because
+# every platform's build has to agree on them: this repository exists so a CVE in
+# zlib, bzip2, liblzma or libzstd is answered without an XeFM release, and a copy
+# of these versions per build script is how "bumped zlib for Windows only" would
+# happen. That file carries the rationale for each pin, including why xz must
+# never be pinned below 5.6.2.
+#
+# Property access below is case-insensitive on the objects ConvertFrom-Json
+# returns, so the JSON's lowercase keys read as .Name / .Url / .Sha256 here.
+
+$SourcesFile = Join-Path $RepoRoot 'sources.json'
+if (-not (Test-Path $SourcesFile)) {
+    throw "sources.json not found at $SourcesFile; it is the pinned source manifest for every platform."
+}
+$Sources = (Get-Content -Raw -Path $SourcesFile | ConvertFrom-Json).sources
+if (-not $Sources) { throw "sources.json has no 'sources' array." }
+
+function Get-Source([string]$name) {
+    $s = $Sources | Where-Object { $_.name -eq $name }
+    if (-not $s) { throw "No pinned source named '$name' in sources.json" }
+    return $s
+}
+
+# Every source in the file is built; these are the ones this script names
+# directly, and a manifest missing one would otherwise fail much later with a
+# confusing CMake error.
+foreach ($required in 'zlib', 'bzip2', 'xz', 'zstd', 'libarchive') {
+    Get-Source $required | Out-Null
+}
 
 $LibarchiveVersion = (Get-Source 'libarchive').Version
 $PackageName = "libarchive-$LibarchiveVersion-windows-$Arch"
@@ -160,7 +158,13 @@ function Import-VsEnvironment([string]$targetArch) {
         }
     }
     if (-not (Get-Command cl.exe -ErrorAction SilentlyContinue)) {
-        throw "cl.exe is still not on PATH after importing the VS environment."
+        # The usual cause is that the toolset for this *target* is not installed:
+        # VsDevCmd reports success and simply leaves the compiler off PATH.
+        # The x64 target is Microsoft.VisualStudio.Component.VC.Tools.x86.x64;
+        # an arm64 target additionally needs ...VC.Tools.ARM64.
+        throw ("cl.exe is not on PATH after importing the VS environment for " +
+               "-arch=$tgtArch -host_arch=$hostArch. The toolset for the $targetArch " +
+               "target is most likely not installed -- add it in the Visual Studio Installer.")
     }
 }
 

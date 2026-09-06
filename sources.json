@@ -1,0 +1,73 @@
+{
+  "_comment": [
+    "Pinned upstream sources for libarchive and everything linked into it.",
+    "",
+    "This file is the single source of truth for EVERY platform's build, and that",
+    "is the whole reason it is a file rather than a literal inside one build",
+    "script. This repository exists so that a CVE in zlib, bzip2, liblzma or",
+    "libzstd can be answered without cutting an XeFM release; if each platform",
+    "carried its own copy of these versions, the failure mode would be bumping",
+    "zlib for Windows and shipping the old one everywhere else. Bump it here,",
+    "rebuild each platform, cut one release.",
+    "",
+    "Pinned by version AND sha256: a release asset that changes under an",
+    "unchanged tag is exactly what the hash is here to catch. Every build must",
+    "verify the hash and refuse to continue on a mismatch.",
+    "",
+    "Where upstream publishes a signature, `signature_url` and `signing_key`",
+    "record how the hash below was established in the first place. See",
+    "ADDING_A_PLATFORM.md for the procedure to repeat when bumping a version."
+  ],
+  "sources": [
+    {
+      "name": "zlib",
+      "version": "1.3.2",
+      "url": "https://github.com/madler/zlib/releases/download/v1.3.2/zlib-1.3.2.tar.gz",
+      "sha256": "bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16",
+      "signature_url": null,
+      "signing_key": null,
+      "signer": null,
+      "note": "zlib publishes no detached signature for its release assets."
+    },
+    {
+      "name": "bzip2",
+      "version": "1.0.8",
+      "url": "https://sourceware.org/pub/bzip2/bzip2-1.0.8.tar.gz",
+      "sha256": "ab5a03176ee106d3f0fa90e381da478ddae405918153cca248e682cd0c4a2269",
+      "signature_url": null,
+      "signing_key": null,
+      "signer": null,
+      "note": "No signature either, but this hash is the value every distribution has quoted since 2019. bzip2 has had no release since; a new version appearing is itself worth a second look."
+    },
+    {
+      "name": "xz",
+      "version": "5.8.3",
+      "url": "https://github.com/tukaani-project/xz/releases/download/v5.8.3/xz-5.8.3.tar.xz",
+      "sha256": "fff1ffcf2b0da84d308a14de513a1aa23d4e9aa3464d17e64b9714bfdd0bbfb6",
+      "signature_url": "https://github.com/tukaani-project/xz/releases/download/v5.8.3/xz-5.8.3.tar.xz.sig",
+      "signing_key": "3690C240CE51B4670D30AD1C38EE757D69184620",
+      "signer": "Lasse Collin <lasse.collin@tukaani.org>",
+      "note": "NEVER move this pin below 5.6.2. Versions 5.6.0 and 5.6.1 shipped the CVE-2024-3094 backdoor, and a downgrade is the one direction nobody would question in a diff."
+    },
+    {
+      "name": "zstd",
+      "version": "1.5.7",
+      "url": "https://github.com/facebook/zstd/releases/download/v1.5.7/zstd-1.5.7.tar.gz",
+      "sha256": "eb33e51f49a15e023950cd7825ca74a4a2b43db8354825ac24fc1b7ee09e6fa3",
+      "signature_url": "https://github.com/facebook/zstd/releases/download/v1.5.7/zstd-1.5.7.tar.gz.sig",
+      "signing_key": "4EF4AC63455FC9F4545D9B7DEF8FE99528B52FFD",
+      "signer": "Zstandard Release Signing Key <signing@zstd.net>",
+      "note": null
+    },
+    {
+      "name": "libarchive",
+      "version": "3.8.9",
+      "url": "https://github.com/libarchive/libarchive/releases/download/v3.8.9/libarchive-3.8.9.tar.xz",
+      "sha256": "888c934f9d95648ecb9163dc8e23ab80a476ecb81a8f1154704a227b5b676dde",
+      "signature_url": "https://github.com/libarchive/libarchive/releases/download/v3.8.9/libarchive-3.8.9.tar.xz.asc",
+      "signing_key": "659C84C0E23EA1FA97E0B58CC040B508D63D2B36",
+      "signer": "Martin Matuska <mm@FreeBSD.org>",
+      "note": "Built last, against the four above. Its version is what names the release assets."
+    }
+  ]
+}

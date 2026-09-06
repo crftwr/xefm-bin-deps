@@ -118,10 +118,12 @@ powershell -ExecutionPolicy Bypass -File windows\build-libarchive.ps1
 The result lands in `windows\build\x64\` as the zip and its `.sha256`.
 
 Every upstream source is pinned by version **and** SHA-256 in
-[`windows/build-libarchive.ps1`](windows/build-libarchive.ps1); the build refuses
-to continue on a mismatch. Those hashes were taken from downloads whose OpenPGP
-signatures were verified against each project's published signing key, and the
-script's header records which. bzip2 has no upstream CMake build, so
+[`sources.json`](sources.json), which the build reads and which every future
+platform's build will read too; the build refuses to continue on a mismatch.
+Those hashes were taken from downloads whose OpenPGP signatures were verified
+against each project's published signing key, recorded in the same file — see
+[ADDING_A_PLATFORM.md](ADDING_A_PLATFORM.md#bumping-a-pinned-version) for the
+procedure to repeat when bumping one. bzip2 has no upstream CMake build, so
 [`windows/cmake/bzip2/CMakeLists.txt`](windows/cmake/bzip2/CMakeLists.txt) in
 this repository supplies one; the upstream tarball itself is used unmodified.
 
@@ -133,7 +135,26 @@ to a missing codec by not offering the format, so a wrong build produces a
 working XeFM with fewer formats rather than an error.
 
 Cross-building for x64 from a Windows-on-ARM host is supported and is what the
-script selects automatically; pass `-Arch arm64` for a native ARM64 build.
+script selects automatically — it picks the ARM64 host toolset rather than
+running the x64 one under emulation.
+
+`-Arch arm64` targets ARM64 instead. That path is **untested**: it needs the
+`VC.Tools.ARM64` component, which the machine this was developed on does not
+have, and XeFM ships no ARM64 Windows bundle to consume it. The script will tell
+you if the toolset is missing rather than failing obscurely.
+
+## Other platforms
+
+Only Windows is built here today, because it is the only platform XeFM supports
+that has no system libarchive. macOS and Linux builds are plausible later — the
+strongest case is macOS, whose system libarchive has no libzstd.
+
+[ADDING_A_PLATFORM.md](ADDING_A_PLATFORM.md) records what a second platform
+would and would not share: `sources.json` must stay the one place versions are
+pinned, the release layout and asset naming are fixed, and everything about
+toolchains and linkage is per-platform on purpose. It also documents the
+filename-encoding trap that decided Windows' C runtime linkage, which any
+platform weighing a static runtime should read first.
 
 ## License
 
