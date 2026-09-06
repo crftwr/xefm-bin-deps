@@ -1,0 +1,5 @@
+# Downloaded upstream tarballs and their extracted trees, and every build tree
+# and staged artifact. Nothing under here is ours: the pinned versions and
+# checksums in windows/build-libarchive.ps1 are what reproduce it.
+.cache/
+windows/build/
