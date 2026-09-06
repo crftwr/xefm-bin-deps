@@ -74,10 +74,19 @@ the format — so that line is the thing to read.
 
 ## What is in the build
 
-One DLL, with everything linked in statically, including the MSVC runtime. Its
-only imports are `bcrypt.dll`, `XmlLite.dll`, `KERNEL32.dll` and `ole32.dll` —
-all part of Windows — so it can be dropped next to an application with no support
-DLLs to place alongside it.
+One DLL, with the compression libraries linked in statically. Beyond
+`bcrypt.dll`, `XmlLite.dll`, `KERNEL32.dll` and `ole32.dll` — all part of
+Windows — it imports only the Microsoft C runtime (`vcruntime140.dll` and the
+`api-ms-win-crt-*` stubs), which any Python installation already requires.
+
+The C runtime is deliberately **not** linked statically, and the reason is
+filenames rather than size. libarchive picks the code page for its wide/narrow
+filename conversions by calling `setlocale(LC_CTYPE, NULL)` in its own C
+runtime. Made static, that runtime is private to the DLL and stuck at the
+process ANSI code page, where an application cannot reach it — so on a machine
+whose ACP is 1252 a CJK filename becomes a NULL pathname, and the ISO 9660
+writer drops such a file silently. Sharing the runtime lets the application
+select a UTF-8 `LC_CTYPE` once and have every conversion follow.
 
 | Component | Why |
 |-----------|-----|
