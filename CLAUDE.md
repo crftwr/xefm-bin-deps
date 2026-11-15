@@ -67,7 +67,8 @@ hoist code into a shared location speculatively.
   `branch`, `tag`, `blame`, `grep`.
 - **This machine is Windows on ARM.** `platform.machine()` reports `ARM64` while
   most shells report `PROCESSOR_ARCHITECTURE=AMD64`, so the host is easy to
-  misread. The build cross-compiles ARM64 host → x64 target automatically.
+  misread. The build uses the ARM64 host toolset for either target, so x64 is a
+  cross-compile and arm64 is native.
 - **A cross-built x64 DLL cannot load into an ARM64 process.** Verify it with an
   x64 Python (XeFM's `.venv`), not from PowerShell, which may be ARM64.
 - Do not launch XeFM to test a build (it is a TUI/GUI and blocks). Load the DLL
@@ -91,10 +92,11 @@ powershell -ExecutionPolicy Bypass -File windows\build-libarchive.ps1
 Output lands in `windows\build\x64\` as the zip and its `.sha256`. `-Clean`
 discards build trees but keeps downloads, which are hash-verified anyway.
 
-`-Arch arm64` exists but is **untested**: it needs the `VC.Tools.ARM64` component
-that this machine does not have, and XeFM ships no ARM64 Windows bundle to
-consume it. The script reports a missing target toolset clearly rather than
-failing obscurely.
+`-Arch arm64` builds the asset XeFM's ARM64 Windows bundle ships. It needs the
+`VC.Tools.ARM64` component, which this machine has; the script reports a missing
+target toolset clearly rather than failing obscurely. Output lands in
+`windows\build\arm64\`, and the codec check there loads the DLL into an ARM64
+`python` on PATH.
 
 ### libarchive build options, and why
 
