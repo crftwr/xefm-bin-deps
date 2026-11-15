@@ -138,10 +138,11 @@ Cross-building for x64 from a Windows-on-ARM host is supported and is what the
 script selects automatically — it picks the ARM64 host toolset rather than
 running the x64 one under emulation.
 
-`-Arch arm64` targets ARM64 instead. That path is **untested**: it needs the
-`VC.Tools.ARM64` component, which the machine this was developed on does not
-have, and XeFM ships no ARM64 Windows bundle to consume it. The script will tell
-you if the toolset is missing rather than failing obscurely.
+`-Arch arm64` targets ARM64, for XeFM's ARM64 Windows bundle; it needs the
+`VC.Tools.ARM64` component (the script says so if it is missing). Output lands in
+`windows\build\arm64\`. Built on an ARM64 host, the codec check loads the DLL
+for real; an x64 build there is checked from the codec literals in the binary,
+unless a `python` of the target architecture is on PATH.
 
 ## Other platforms
 

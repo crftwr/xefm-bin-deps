@@ -210,8 +210,15 @@ function Expand-Tarball($source) {
     if (Test-Path $dir) { return $dir }
     $file = Get-Tarball $source
     Write-Info "$($source.Name): extracting"
-    & "$env:SystemRoot\System32\tar.exe" -xf $file -C $DlDir
-    if ($LASTEXITCODE -ne 0) { throw "Failed to extract $file" }
+    # zstd's tests/cli-tests/bin holds symlinks, which Windows refuses to create
+    # without Developer Mode or admin, and bsdtar then fails the whole extract.
+    # Nothing here builds a test suite, so leave every tests/cli-tests out.
+    & "$env:SystemRoot\System32\tar.exe" -xf $file -C $DlDir --exclude '*/tests/cli-tests/*'
+    if ($LASTEXITCODE -ne 0) {
+        # A partial tree would be taken as extracted on the next run.
+        if (Test-Path $dir) { Remove-Item -Recurse -Force $dir }
+        throw "Failed to extract $file"
+    }
     if (-not (Test-Path $dir)) { throw "$file did not extract to the expected $dir" }
     return $dir
 }
@@ -484,7 +491,9 @@ foreach ($s in $Sources) {
 $manifest += ""
 $manifest += "Built with CNG (Windows bcrypt) for hashes and AES, and XmlLite for xar,"
 $manifest += "so there is no OpenSSL and no libxml2 dependency. The MSVC runtime is"
-$manifest += "linked statically as well: bin\archive.dll needs nothing but the OS."
+$manifest += "linked dynamically (/MD), so the host's setlocale reaches libarchive's"
+$manifest += "filename conversions: bin\archive.dll needs vcruntime140.dll, which"
+$manifest += "CPython ships, and nothing else beyond the OS."
 $manifest += ""
 $manifest += "License text for every component is under licenses\."
 $manifest -join "`r`n" | Set-Content -Path (Join-Path $PkgDir 'MANIFEST.txt') -Encoding utf8
